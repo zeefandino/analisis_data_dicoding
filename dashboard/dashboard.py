@@ -17,8 +17,8 @@ st.title("🚴‍♂️ Analisis Penyewaan Sepeda")
 @st.cache_data
 def muat_data():
     try:
-        data_harian = pd.read_csv("../data/day.csv")
-        data_per_jam = pd.read_csv("../data/hour.csv")
+        data_harian = pd.read_csv("data/day.csv")
+        data_per_jam = pd.read_csv("data/hour.csv")
         
         data_harian['dteday'] = pd.to_datetime(data_harian['dteday'])
         data_per_jam['dteday'] = pd.to_datetime(data_per_jam['dteday'])
