@@ -88,91 +88,152 @@ with tab1:
     data_musim = data_harian_filter.groupby('season')['cnt'].sum().reset_index()
     data_musim['Musim'] = data_musim['season'].map(musim_mapping)
     
-    # Grafik batang interaktif
-    fig = px.bar(
-        data_musim,
-        x='Musim',
-        y='cnt',
-        color='Musim',
-        text='cnt',
-        labels={'cnt': 'Total Penyewaan'},
-        height=500
-    )
-    fig.update_traces(texttemplate='%{text:,}', textposition='outside')
+    # Cek apakah data kosong
+    if data_musim.empty:
+        st.warning("⚠️ Tidak ada data yang sesuai dengan filter yang dipilih")
+        fig = px.bar(labels={'x': 'Musim', 'y': 'Total Penyewaan'})
+        fig.update_layout(title="Tidak ada data yang ditampilkan")
+    else:
+        # Grafik batang interaktif
+        fig = px.bar(
+            data_musim,
+            x='Musim',
+            y='cnt',
+            color='Musim',
+            text='cnt',
+            labels={'cnt': 'Total Penyewaan'},
+            height=500
+        )
+        fig.update_traces(texttemplate='%{text:,}', textposition='outside')
+    
     st.plotly_chart(fig, use_container_width=True)
     
-    # Tampilkan data tabel
-    with st.expander("🔍 Lihat Data Detail"):
-        st.dataframe(data_musim[['Musim', 'cnt']].rename(columns={'cnt': 'Total Penyewaan'}))
+    # Tampilkan statistik ringkas dalam expander
+    with st.expander("📊 Lihat Statistik Ringkas", expanded=False):
+        if data_musim.empty:
+            st.write("Tidak ada statistik yang tersedia")
+        else:
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.metric(
+                    "Musim Paling Ramai", 
+                    f"{data_musim.loc[data_musim['cnt'].idxmax(), 'Musim']}",
+                    help="Musim dengan jumlah penyewaan tertinggi"
+                )
+            
+            with col2:
+                st.metric(
+                    "Total Tertinggi", 
+                    f"{data_musim['cnt'].max():,.0f}",
+                    help="Jumlah penyewaan di musim paling ramai"
+                )
+            
+            with col3:
+                st.metric(
+                    "Rata-rata", 
+                    f"{data_musim['cnt'].mean():,.0f}",
+                    help="Rata-rata penyewaan di semua musim"
+                )
+    
+    # Tampilkan data tabel dengan urutan index asli
+    with st.expander("📋 Lihat Data Detail", expanded=False):
+        if data_musim.empty:
+            st.write("Tidak ada data yang ditampilkan")
+        else:
+            # Buat dataframe untuk tampilan
+            df_tampil = data_musim[['Musim', 'cnt']].rename(columns={'cnt': 'Total Penyewaan'})
+            
+            # Reset index untuk tampilan rapi
+            df_tampil = df_tampil.reset_index(drop=True)
+            df_tampil.index = df_tampil.index + 1  # Mulai dari nomor 1
+            
+            # Tampilkan tabel dengan styling
+            st.dataframe(
+                df_tampil.style
+                    .background_gradient(cmap='YlGnBu', subset=['Total Penyewaan'])
+                    .format("{:,.0f}", subset=['Total Penyewaan'])
+                    .set_properties(**{'text-align': 'center'}),
+                use_container_width=True,
+                height=300
+            )
 
 with tab2:
     st.header("⏰ Penyewaan per Jam")
     
     # Hitung total per jam
     data_jam = data_per_jam_filter.groupby('hr')['cnt'].sum().reset_index()
-    data_jam['Jam'] = data_jam['hr'].astype(str) + ':00'
+    data_jam['Jam'] = data_jam['hr'].apply(lambda x: f"{x:02d}:00")
     
-    # Grafik garis interaktif
-    fig = px.line(
-        data_jam,
-        x='Jam',
-        y='cnt',
-        markers=True,
-        labels={'cnt': 'Total Penyewaan'},
-        height=500
-    )
-    fig.update_traces(line=dict(width=3))
+    # Cek apakah data kosong
+    if data_jam.empty:
+        st.warning("⚠️ Tidak ada data yang sesuai dengan filter yang dipilih")
+        fig = px.line(labels={'x': 'Jam', 'y': 'Total Penyewaan'})
+        fig.update_layout(title="Tidak ada data yang ditampilkan")
+    else:
+        # Grafik garis interaktif
+        fig = px.line(
+            data_jam,
+            x='Jam',
+            y='cnt',
+            markers=True,
+            labels={'cnt': 'Total Penyewaan'},
+            height=500
+        )
+        fig.update_traces(line=dict(width=3))
+    
     st.plotly_chart(fig, use_container_width=True)
     
-    # Tabel detail penyewaan per jam dan hari
-    st.subheader("Detail Penyewaan per Jam dan Hari")
+    # Tampilkan statistik ringkas dalam expander
+    with st.expander("📊 Lihat Statistik Ringkas", expanded=False):
+        if data_jam.empty:
+            st.write("Tidak ada statistik yang tersedia")
+        else:
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.metric(
+                    "Jam Paling Ramai", 
+                    f"{data_jam.loc[data_jam['cnt'].idxmax(), 'Jam']}",
+                    help="Jam dengan jumlah penyewaan tertinggi"
+                )
+            
+            with col2:
+                st.metric(
+                    "Total Tertinggi", 
+                    f"{data_jam['cnt'].max():,.0f}",
+                    help="Jumlah penyewaan pada jam paling ramai"
+                )
+            
+            with col3:
+                st.metric(
+                    "Rata-rata per Jam", 
+                    f"{data_jam['cnt'].mean():,.0f}",
+                    help="Rata-rata penyewaan di semua jam"
+                )
     
-    # Mapping nama hari
-    hari_mapping = {
-        0: 'Minggu',
-        1: 'Senin',
-        2: 'Selasa',
-        3: 'Rabu',
-        4: 'Kamis',
-        5: 'Jumat',
-        6: 'Sabtu'
-    }
-    
-    # Buat data untuk tabel
-    data_jam_hari = data_per_jam_filter.groupby(['hr', 'weekday'])['cnt'].sum().reset_index()
-    data_jam_hari['Jam'] = data_jam_hari['hr'].astype(str) + ':00'
-    data_jam_hari['Hari'] = data_jam_hari['weekday'].map(hari_mapping)
-    
-    # Pivot table untuk tampilan yang lebih baik
-    pivot_table = data_jam_hari.pivot_table(
-        index='Jam',
-        columns='Hari',
-        values='cnt',
-        fill_value=0
-    ).reset_index()
-    
-    # Urutkan hari sesuai urutan seminggu
-    hari_urutan = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
-    pivot_table = pivot_table[['Jam'] + hari_urutan]
-    
-    # Tampilkan tabel
-    with st.expander("🔍 Lihat Data Detail Penyewaan per Jam dan Hari"):
-        st.dataframe(
-            pivot_table.style
-                .background_gradient(cmap='Blues', subset=hari_urutan)
-                .format("{:,.0f}", subset=hari_urutan),
-            use_container_width=True
-        )
+    # Tampilkan data tabel dengan urutan jam
+    with st.expander("📋 Lihat Data Detail", expanded=False):
+        if data_jam.empty:
+            st.write("Tidak ada data yang ditampilkan")
+        else:
+            # Buat dataframe untuk tampilan
+            df_tampil = data_jam[['Jam', 'cnt']].rename(columns={'cnt': 'Total Penyewaan'})
+            
+            # Reset index untuk tampilan rapi (urut berdasarkan jam)
+            df_tampil = df_tampil.sort_values('Jam').reset_index(drop=True)
+            df_tampil.index = df_tampil.index + 1  # Mulai dari nomor 1
+            
+            # Tampilkan tabel dengan styling
+            st.dataframe(
+                df_tampil.style
+                    .background_gradient(cmap='YlGnBu', subset=['Total Penyewaan'])
+                    .format("{:,.0f}", subset=['Total Penyewaan'])
+                    .set_properties(**{'text-align': 'center'}),
+                use_container_width=True,
+                height=300
+            )
         
-        # Tambahkan opsi download
-        csv = pivot_table.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="📥 Download Data sebagai CSV",
-            data=csv,
-            file_name='penyewaan_per_jam_dan_hari.csv',
-            mime='text/csv'
-        )
-
 # Informasi tambahan
 st.sidebar.markdown("---")
 st.sidebar.markdown("**ℹ️ Tentang**")
