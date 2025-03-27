@@ -237,4 +237,4 @@ with tab2:
 # Informasi tambahan
 st.sidebar.markdown("---")
 st.sidebar.markdown("**ℹ️ Tentang**")
-st.sidebar.markdown("Dashboard ini menampilkan pola penyewaan sepeda berdasarkan musim dan jam.")
+st.sidebar.markdown("Dashboard ini menampilkan analisis penyewaan sepeda berdasarkan musim dan jam.")
