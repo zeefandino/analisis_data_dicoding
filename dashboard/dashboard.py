@@ -1,119 +1,142 @@
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
 import streamlit as st
-from babel.numbers import format_currency
-sns.set(style='dark')
-from matplotlib.ticker import FuncFormatter  # Impor FuncFormatter
+import plotly.express as px
+from datetime import datetime
 
-
-# Judul Dashboard
-st.title("Bike Sharing Dataset Analysis Dashboard  :sparkles:")
-
-# Load Data dengan st.cache_data
-@st.cache_data  # Ganti st.cache dengan st.cache_data
-def load_data():
-    day_df = pd.read_csv("../data/day.csv")
-    hour_df = pd.read_csv("../data/hour.csv")
-    return day_df, hour_df
-
-day_df, hour_df = load_data()
-
-# Konversi kolom `dteday` ke datetime
-day_df['dteday'] = pd.to_datetime(day_df['dteday'])
-hour_df['dteday'] = pd.to_datetime(hour_df['dteday'])
-
-# Sidebar untuk memilih analisis
-st.sidebar.title("Pilih Analisis")
-analysis_option = st.sidebar.selectbox(
-    "Pilih Jenis Analisis",
-    ["Analisis Musim", "Analisis Jam"]
+# Konfigurasi halaman
+st.set_page_config(
+    page_title="Analisis Penyewaan Sepeda",
+    page_icon="🚲",
+    layout="wide"
 )
 
-# Analisis Musim
-if analysis_option == "Analisis Musim":
-    st.header("Analisis Penyewaan Sepeda Berdasarkan Musim")
+# Judul dashboard
+st.title("🚴‍♂️ Analisis Penyewaan Sepeda")
+
+# Fungsi untuk memuat data
+@st.cache_data
+def muat_data():
+    try:
+        data_harian = pd.read_csv("../data/day.csv")
+        data_per_jam = pd.read_csv("../data/hour.csv")
+        
+        data_harian['dteday'] = pd.to_datetime(data_harian['dteday'])
+        data_per_jam['dteday'] = pd.to_datetime(data_per_jam['dteday'])
+        
+        return data_harian, data_per_jam
+    except Exception as e:
+        st.error(f"Error: {e}")
+        return pd.DataFrame(), pd.DataFrame()
+
+# Memuat data
+data_harian, data_per_jam = muat_data()
+
+
+#  SIDEBAR FILTER
+with st.sidebar:
+    st.header("🔧 Filter Data")
     
-    # Hitung total penyewaan per musim
-    daySeason_df = day_df.groupby('season')['cnt'].nunique().reset_index()
-    daySeason_df.rename(columns={'cnt': 'Jumlah_Rental_Sepeda'}, inplace=True)
-    
-    # Mapping musim ke nama
-    season_names = {1: 'Spring', 2: 'Summer', 3: 'Fall', 4: 'Winter'}
-    daySeason_df['Season'] = daySeason_df['season'].map(season_names)
-    
-    # Buat figure dan axes
-    fig, ax = plt.subplots(figsize=(10, 6))
-    
-    # Tentukan warna untuk setiap bar
-    # Bar dengan jumlah rental terbanyak akan berwarna biru, lainnya abu-abu
-    colors = ["#72BCD4" if x == daySeason_df["Jumlah_Rental_Sepeda"].max() else "#D3D3D3" for x in daySeason_df["Jumlah_Rental_Sepeda"]]
-    
-    # Buat barplot
-    sns.barplot(
-        x="Season",  # Sumbu x: season
-        y="Jumlah_Rental_Sepeda",  # Sumbu y: jumlah rental sepeda
-        data=daySeason_df,  # Data yang digunakan
-        palette=colors,  # Warna bar
-        ax=ax
+    # Filter tanggal
+    tanggal_min = data_harian['dteday'].min().date()
+    tanggal_max = data_harian['dteday'].max().date()
+    rentang_tanggal = st.date_input(
+        "Rentang Tanggal",
+        value=(tanggal_min, tanggal_max),
+        min_value=tanggal_min,
+        max_value=tanggal_max
     )
     
-    # Atur label dan judul
-    ax.set_ylabel("Jumlah Rental Sepeda", fontsize=12)
-    ax.set_xlabel("Musim", fontsize=12)
-    ax.set_title("Jumlah Penyewaan Sepeda pada Tiap Musim", loc="center", fontsize=16)
-    ax.tick_params(axis='x', labelsize=12)
-    ax.tick_params(axis='y', labelsize=12)
-    
-    # Nonaktifkan notasi ilmiah pada sumbu y
-    ax.ticklabel_format(style='plain', axis='y')
-    
-    # Format label sumbu y dengan pemisah ribuan
-    ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{int(x):,}"))
-    
-    # Tampilkan plot di Streamlit
-    st.pyplot(fig)
-
-# Analisis Jam
-elif analysis_option == "Analisis Jam":
-    st.header("Analisis Penyewaan Sepeda Berdasarkan Jam")
-    
-    # Hitung total penyewaan per jam
-    hourSeason_df = hour_df.groupby('hr')['cnt'].nunique().reset_index()
-    hourSeason_df.rename(columns={'cnt': 'Jumlah_Rental_Sepeda'}, inplace=True)
-    
-    # Buat figure dan axes
-    fig, ax = plt.subplots(figsize=(12, 6))
-    
-    # Tentukan warna untuk setiap bar
-    # Bar dengan jumlah rental terbanyak akan berwarna biru, lainnya abu-abu
-    colors = ["#72BCD4" if x == hourSeason_df["Jumlah_Rental_Sepeda"].max() else "#D3D3D3" for x in hourSeason_df["Jumlah_Rental_Sepeda"]]
-    
-    # Buat barplot
-    sns.barplot(
-        x="hr",  # Sumbu x: hour
-        y="Jumlah_Rental_Sepeda",  # Sumbu y: jumlah rental sepeda
-        data=hourSeason_df,  # Data yang digunakan
-        palette=colors,  # Warna bar
-        ax=ax
+    # Filter musim
+    musim_mapping = {1: 'Semi', 2: 'Panas', 3: 'Gugur', 4: 'Dingin'}
+    musim_terpilih = st.multiselect(
+        "Pilih Musim",
+        options=list(musim_mapping.values()),
+        default=list(musim_mapping.values())
     )
-    
-    # Atur label dan judul
-    ax.set_ylabel("Jumlah Rental Sepeda", fontsize=12)
-    ax.set_xlabel("Jam", fontsize=12)
-    ax.set_title("Jumlah Penyewaan Sepeda pada Tiap Jam", loc="center", fontsize=16)
-    ax.tick_params(axis='x', labelsize=12)
-    ax.tick_params(axis='y', labelsize=12)
-    
-    # Nonaktifkan notasi ilmiah pada sumbu y
-    ax.ticklabel_format(style='plain', axis='y')
-    
-    # Format label sumbu y dengan pemisah ribuan
-    ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{int(x):,}"))
-    
-    # Tampilkan plot di Streamlit
-    st.pyplot(fig)
 
-# Informasi Tambahan
-st.sidebar.markdown("### Tentang Dashboard")
-st.sidebar.markdown("Dashboard ini menampilkan analisis penyewaan sepeda terbanyak berdasarkan musim dan jam.")
+# =============================================
+# 🛠 APLIKASI FILTER
+# =============================================
+def filter_data(df):
+    # Filter tanggal
+    if len(rentang_tanggal) == 2:
+        start = pd.to_datetime(rentang_tanggal[0])
+        end = pd.to_datetime(rentang_tanggal[1])
+        df = df[(df['dteday'] >= start) & (df['dteday'] <= end)]
+    
+    # Filter musim
+    if musim_terpilih:
+        musim_numbers = [k for k, v in musim_mapping.items() if v in musim_terpilih]
+        df = df[df['season'].isin(musim_numbers)]
+    
+    return df
+
+data_harian_filter = filter_data(data_harian)
+data_per_jam_filter = filter_data(data_per_jam)
+
+# =============================================
+# 📊 VISUALISASI UTAMA
+# =============================================
+
+# Tab untuk memilih analisis
+tab1, tab2 = st.tabs(["Analisis Musim", "Analisis Per Jam"])
+
+with tab1:
+    st.header("🌦 Penyewaan per Musim")
+    
+    # Hitung total per musim
+    data_musim = data_harian_filter.groupby('season')['cnt'].sum().reset_index()
+    data_musim['Musim'] = data_musim['season'].map(musim_mapping)
+    
+    # Grafik batang interaktif
+    fig = px.bar(
+        data_musim,
+        x='Musim',
+        y='cnt',
+        color='Musim',
+        text='cnt',
+        labels={'cnt': 'Total Penyewaan'},
+        height=500
+    )
+    fig.update_traces(texttemplate='%{text:,}', textposition='outside')
+    st.plotly_chart(fig, use_container_width=True)
+    
+    # Tampilkan data tabel
+    with st.expander("🔍 Lihat Data Detail"):
+        st.dataframe(data_musim[['Musim', 'cnt']].rename(columns={'cnt': 'Total Penyewaan'}))
+
+with tab2:
+    st.header("⏰ Penyewaan per Jam")
+    
+    # Hitung total per jam
+    data_jam = data_per_jam_filter.groupby('hr')['cnt'].sum().reset_index()
+    data_jam['Jam'] = data_jam['hr'].astype(str) + ':00'
+    
+    # Grafik garis interaktif
+    fig = px.line(
+        data_jam,
+        x='Jam',
+        y='cnt',
+        markers=True,
+        labels={'cnt': 'Total Penyewaan'},
+        height=500
+    )
+    fig.update_traces(line=dict(width=3))
+    st.plotly_chart(fig, use_container_width=True)
+    
+    # Heatmap per jam dan hari
+    st.subheader("Pola per Jam dan Hari")
+    heatmap_data = data_per_jam_filter.groupby(['hr', 'weekday'])['cnt'].sum().unstack()
+    fig2 = px.imshow(
+        heatmap_data,
+        labels=dict(x="Hari", y="Jam", color="Penyewaan"),
+        x=['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'],
+        y=[f"{h}:00" for h in range(24)],
+        color_continuous_scale='Blues'
+    )
+    st.plotly_chart(fig2, use_container_width=True)
+
+# Informasi tambahan
+st.sidebar.markdown("---")
+st.sidebar.markdown("**ℹ️ Tentang**")
+st.sidebar.markdown("Dashboard ini menampilkan pola penyewaan sepeda berdasarkan musim dan jam.")
