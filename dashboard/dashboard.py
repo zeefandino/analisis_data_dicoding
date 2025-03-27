@@ -124,17 +124,54 @@ with tab2:
     fig.update_traces(line=dict(width=3))
     st.plotly_chart(fig, use_container_width=True)
     
-    # Heatmap per jam dan hari
-    st.subheader("Pola per Jam dan Hari")
-    heatmap_data = data_per_jam_filter.groupby(['hr', 'weekday'])['cnt'].sum().unstack()
-    fig2 = px.imshow(
-        heatmap_data,
-        labels=dict(x="Hari", y="Jam", color="Penyewaan"),
-        x=['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'],
-        y=[f"{h}:00" for h in range(24)],
-        color_continuous_scale='Blues'
-    )
-    st.plotly_chart(fig2, use_container_width=True)
+    # Tabel detail penyewaan per jam dan hari
+    st.subheader("Detail Penyewaan per Jam dan Hari")
+    
+    # Mapping nama hari
+    hari_mapping = {
+        0: 'Minggu',
+        1: 'Senin',
+        2: 'Selasa',
+        3: 'Rabu',
+        4: 'Kamis',
+        5: 'Jumat',
+        6: 'Sabtu'
+    }
+    
+    # Buat data untuk tabel
+    data_jam_hari = data_per_jam_filter.groupby(['hr', 'weekday'])['cnt'].sum().reset_index()
+    data_jam_hari['Jam'] = data_jam_hari['hr'].astype(str) + ':00'
+    data_jam_hari['Hari'] = data_jam_hari['weekday'].map(hari_mapping)
+    
+    # Pivot table untuk tampilan yang lebih baik
+    pivot_table = data_jam_hari.pivot_table(
+        index='Jam',
+        columns='Hari',
+        values='cnt',
+        fill_value=0
+    ).reset_index()
+    
+    # Urutkan hari sesuai urutan seminggu
+    hari_urutan = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
+    pivot_table = pivot_table[['Jam'] + hari_urutan]
+    
+    # Tampilkan tabel
+    with st.expander("🔍 Lihat Data Detail Penyewaan per Jam dan Hari"):
+        st.dataframe(
+            pivot_table.style
+                .background_gradient(cmap='Blues', subset=hari_urutan)
+                .format("{:,.0f}", subset=hari_urutan),
+            use_container_width=True
+        )
+        
+        # Tambahkan opsi download
+        csv = pivot_table.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📥 Download Data sebagai CSV",
+            data=csv,
+            file_name='penyewaan_per_jam_dan_hari.csv',
+            mime='text/csv'
+        )
 
 # Informasi tambahan
 st.sidebar.markdown("---")
